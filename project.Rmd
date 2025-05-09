@@ -1,0 +1,113 @@
+---
+title: "Practical Machine Learning Project"
+author: "Fahad Sudheer Kannu"
+date: "2025-05-08"
+output: html_document
+---
+
+## Introduction
+
+The goal of this project was to use data collected from wearable devices (such as accelerometers and gyroscopes) to predict how well participants performed barbell lifts.  
+This prediction task is framed as a multi-class classification problem, with the outcome variable `classe` representing one of five possible exercise categories.
+
+---
+
+## Methods
+
+To complete the project, I followed these steps:
+
+- **Data Cleaning:**
+  - Removed near-zero variance predictors
+  - Removed columns with over 95% missing values
+  - Removed ID, timestamp, and name columns
+
+- **Data Splitting:**
+  - Split the cleaned dataset into 70% training and 30% validation sets
+
+- **Modeling:**
+  - Trained a Random Forest classifier
+  - Used 2-fold cross-validation (for speed) with 50 trees
+
+I selected Random Forest because of its strong performance and robustness on classification tasks, particularly when dealing with many predictors.
+
+---
+
+## Results
+
+✅ **Training Summary:**  
+- Optimal `mtry`: 27  
+- Cross-validated training accuracy: ~99%
+
+✅ **Validation Set Performance:**  
+- Overall Accuracy: 99.76%  
+- Kappa: 0.997  
+- 95% Confidence Interval: (0.996, 0.9987)
+
+The confusion matrix showed near-perfect classification across all five classes (A, B, C, D, E), indicating strong model generalization.
+
+✅ **Final Test Predictions (20 cases):**  
+B A B A A E D B A A B C B A E E A B B B
+
+---
+
+## Code
+
+```{r load-libraries, message=FALSE}
+library(caret)
+library(randomForest)
+
+# Load data
+training <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv")
+testing <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv")
+
+
+# Remove near-zero variance predictors
+nzv <- nearZeroVar(training)
+training <- training[, -nzv]
+testing <- testing[, -nzv]
+
+# Remove columns with too many missing values
+missing_threshold <- 0.95
+good_cols <- colSums(is.na(training)) / nrow(training) < missing_threshold
+training <- training[, good_cols]
+testing <- testing[, good_cols]
+
+# Remove ID columns
+training <- training[, -c(1:5)]
+testing <- testing[, -c(1:5)]
+
+# Partition data
+set.seed(1234)
+inTrain <- createDataPartition(training$classe, p = 0.7, list = FALSE)
+train_data <- training[inTrain, ]
+val_data <- training[-inTrain, ]
+
+# Train Random Forest
+set.seed(1234)
+model_rf <- train(classe ~ ., 
+                  data = train_data, 
+                  method = "rf", 
+                  trControl = trainControl(method = "cv", number = 2),
+                  ntree = 50)
+model_rf
+
+# Evaluate on validation set
+predictions <- predict(model_rf, val_data)
+val_data$classe <- factor(val_data$classe)
+conf_matrix <- confusionMatrix(factor(predictions, levels = levels(val_data$classe)), val_data$classe)
+conf_matrix
+
+# Final test predictions
+final_predictions <- predict(model_rf, testing)
+final_predictions
+
+
+
+
+
+
+
+
+
+
+
